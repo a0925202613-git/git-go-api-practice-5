@@ -1,0 +1,121 @@
+{
+	"info": {
+		"_postman_id": "go-api-practice-5-sanrio",
+		"name": "Go API Practice 5 - 三麗鷗角色與周邊",
+		"description": "三麗鷗角色 (characters) 與周邊商品 (merchandise) API 測試",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8080" },
+		{ "key": "characterId", "value": "1" },
+		{ "key": "merchandiseId", "value": "1" }
+	],
+	"item": [
+		{
+			"name": "角色 (characters)",
+			"item": [
+				{
+					"name": "取得所有角色",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/characters"
+					}
+				},
+				{
+					"name": "取得單一角色",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/characters/{{characterId}}"
+					}
+				},
+				{
+					"name": "新增角色",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Hello Kitty\",\n  \"merchandise_id\": 1,\n  \"intro\": \"來自倫敦的可愛小貓\"\n}"
+						},
+						"url": "{{baseUrl}}/api/characters"
+					}
+				},
+				{
+					"name": "更新角色",
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Hello Kitty\",\n  \"merchandise_id\": 1,\n  \"intro\": \"更新後的介紹\"\n}"
+						},
+						"url": "{{baseUrl}}/api/characters/{{characterId}}"
+					}
+				},
+				{
+					"name": "刪除角色",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": "{{baseUrl}}/api/characters/{{characterId}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "周邊商品 (merchandise)",
+			"item": [
+				{
+					"name": "取得所有周邊",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/merchandise"
+					}
+				},
+				{
+					"name": "取得單一周邊",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/merchandise/{{merchandiseId}}"
+					}
+				},
+				{
+					"name": "新增周邊",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"大耳狗 抱枕\",\n  \"category\": \"玩偶\",\n  \"price\": 450,\n  \"description\": \"40cm 絨毛抱枕\"\n}"
+						},
+						"url": "{{baseUrl}}/api/merchandise"
+					}
+				},
+				{
+					"name": "更新周邊",
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"大耳狗 抱枕\",\n  \"category\": \"玩偶\",\n  \"price\": 499,\n  \"description\": \"40cm 絨毛抱枕（調價）\"\n}"
+						},
+						"url": "{{baseUrl}}/api/merchandise/{{merchandiseId}}"
+					}
+				},
+				{
+					"name": "刪除周邊",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": "{{baseUrl}}/api/merchandise/{{merchandiseId}}"
+					}
+				}
+			]
+		}
+	]
+}
