@@ -67,17 +67,18 @@ func CreateMerchandise(c *gin.Context) {
 		return
 	}
 
-query := `
+	query := `
     INSERT INTO merchandise (name, category, price, description) 
     VALUES ($1, $2, $3, $4) 
     RETURNING id, name, COALESCE(category, ''), price, COALESCE(description, ''), created_at, updated_at
 `
-var newMerchandi models.Merchandise
-if err := database.DB.QueryRow(query, input.ID)
+	var newMerchandise models.Merchandise
+	if err := database.DB.QueryRow(query, input.Name, input.Category, input.Price, input.Description).Scan(&newMerchandise.ID, &newMerchandise.Name, &newMerchandise.Category, &newMerchandise.Price, &newMerchandise.Description, &newMerchandise.CreatedAt, &newMerchandise.UpdatedAt); err != nil {
+		respondError(c, fmt.Errorf("新增周邊失敗：%w", err))
+		return
+	}
 
-
-
-	respondError(c, fmt.Errorf("請實作：INSERT merchandise 並回傳（name=%s price=%d）", input.Name, input.Price))
+	c.JSON(http.StatusCreated, newMerchandise)
 }
 
 // UpdateMerchandise 更新周邊
@@ -91,7 +92,20 @@ func UpdateMerchandise(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	respondError(c, fmt.Errorf("請實作：UPDATE 周邊並回傳（id=%d）", id))
+
+	query := "UPDATE merchandise SET name = $1, category = $2, price = $3, description = $4, updated_at = NOW() WHERE id = $5 RETURNING id, name, COALESCE(category, ''), price, COALESCE(description, ''), created_at, updated_at"
+
+	var updateMerchandise models.Merchandise
+	if err := database.DB.QueryRow(query, input.Name, input.Category, input.Price, input.Description, id).Scan(&updateMerchandise.ID, &updateMerchandise.Name, &updateMerchandise.Category, &updateMerchandise.Price, &updateMerchandise.Description, &updateMerchandise.CreatedAt, &updateMerchandise.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondError(c, ErrNotFound)
+			return
+		}
+		respondError(c, fmt.Errorf("更新周邊失敗：%w", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, updateMerchandise)
 }
 
 // DeleteMerchandise 刪除周邊
@@ -100,5 +114,25 @@ func DeleteMerchandise(c *gin.Context) {
 	if !ok {
 		return
 	}
-	respondError(c, fmt.Errorf("請實作：DELETE 周邊（id=%d）", id))
+
+	query := "DELETE FROM merchandise WHERE id = $1"
+
+	result, err := database.DB.Exec(query, id)
+	if err != nil {
+		respondError(c, fmt.Errorf("刪除周邊失敗：%w", err))
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		respondError(c, fmt.Errorf("取得受影響行數失敗：%w", err))
+		return
+	}
+
+	if rowsAffected == 0 {
+		respondError(c, ErrNotFound)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "成功刪除"})
 }
