@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"database/sql"
+	"database/sql" //為了使用 sql.ErrNoRows
 	"errors"
 	"fmt"
 	"net/http"
 
-	"go-api-practice-5/database"
+	"go-api-practice-5/database" //為了呼叫 database.DB
 	"go-api-practice-5/models"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +15,7 @@ import (
 // GetMerchandise 取得所有周邊商品
 func GetMerchandise(c *gin.Context) {
 
-	query := "SELECT id, name, category, price, description, created_at, updated_at FROM merchandise"
+	query := "SELECT id, name, COALESCE(category, ''), price, COALESCE(description, ''), created_at, updated_at FROM merchandise"
 
 	rows, err := database.DB.Query(query)
 	if err != nil {
@@ -44,7 +44,7 @@ func GetMerchandiseByID(c *gin.Context) {
 		return
 	}
 
-	query := "SELECT id, name, category, price, description, created_at, updated_at FROM merchandise WHERE id = $1"
+	query := "SELECT id, name, COALESCE(category, ''), price, COALESCE(description, ''), created_at, updated_at FROM merchandise WHERE id =$1"
 
 	var item models.Merchandise
 	if err := database.DB.QueryRow(query, id).Scan(&item.ID, &item.Name, &item.Category, &item.Price, &item.Description, &item.CreatedAt, &item.UpdatedAt); err != nil {
@@ -56,9 +56,7 @@ func GetMerchandiseByID(c *gin.Context) {
 		return
 	}
 
-
-
-	respondError(c, fmt.Errorf("請實作：依 id 查詢單一周邊（id=%d）", id))
+	c.JSON(http.StatusOK, item)
 }
 
 // CreateMerchandise 新增周邊（body：name、price 必填，category、description 選填）
@@ -68,6 +66,17 @@ func CreateMerchandise(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+query := `
+    INSERT INTO merchandise (name, category, price, description) 
+    VALUES ($1, $2, $3, $4) 
+    RETURNING id, name, COALESCE(category, ''), price, COALESCE(description, ''), created_at, updated_at
+`
+var newMerchandi models.Merchandise
+if err := database.DB.QueryRow(query, input.ID)
+
+
+
 	respondError(c, fmt.Errorf("請實作：INSERT merchandise 並回傳（name=%s price=%d）", input.Name, input.Price))
 }
 
