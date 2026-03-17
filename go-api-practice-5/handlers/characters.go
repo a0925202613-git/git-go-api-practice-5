@@ -46,7 +46,7 @@ func GetCharacters(c *gin.Context) {
 			COALESCE(m.name, '') AS merchandise_name,
 			COALESCE(c.intro, ''),
 			c.created_at,
-			c.updated_at,
+			c.updated_at
 		FROM characters c
 		LEFT JOIN merchandise m ON c.merchandise_id = m.id
 	`
@@ -98,7 +98,7 @@ func GetCharacterByID(c *gin.Context) {
 			COALESCE(m.name, '') AS merchandise_name,
 			COALESCE(c.intro, ''),
 			c.created_at,
-			c.updated_at,
+			c.updated_at
 		FROM characters c
 		LEFT JOIN merchandise m ON c.merchandise_id = m.id
 		WHERE c.id = $1
@@ -173,6 +173,22 @@ func UpdateCharacter(c *gin.Context) {
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if input.Name == "" || input.MerchandiseID == 0 {
+		// 查詢原本的角色資料，確保角色存在，並取得現有的 name 和 merchandise_id
+		var existing models.Character
+		err := database.DB.QueryRow(`SELECT name, merchandise_id FROM characters WHERE id = $1`, id).Scan(&existing.Name, &existing.MerchandiseID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				respondError(c, ErrNotFound)
+				return
+			}
+			respondError(c, fmt.Errorf("查詢角色失敗：%w", err))
+			return
+		}
+		input.Name = existing.Name
+		input.MerchandiseID = existing.MerchandiseID
 	}
 
 	// 實作：UPDATE characters 並回傳（name, merchandise_id 從 input 帶入）
