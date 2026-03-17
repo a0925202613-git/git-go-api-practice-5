@@ -207,7 +207,6 @@ func UpdateCharacter(c *gin.Context) {
 		&updatedchar.ID,
 		&updatedchar.Name,
 		&updatedchar.MerchandiseID,
-		&updatedchar.MerchandiseName,
 		&updatedchar.Intro,
 		&updatedchar.CreatedAt,
 		&updatedchar.UpdatedAt,
