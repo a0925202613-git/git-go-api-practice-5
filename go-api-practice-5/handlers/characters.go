@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"go-api-practice-5/database"
 	"go-api-practice-5/models"
 
 	"github.com/gin-gonic/gin"
@@ -36,22 +38,95 @@ func parseID(c *gin.Context, param string) (int, bool) {
 // GetCharacters 取得所有角色（需 JOIN merchandise 帶出周邊名稱，回傳 []CharacterWithMerchandise）
 func GetCharacters(c *gin.Context) {
 
-	query := "SELECT * FROM character"
+	query := `
+		SELECT
+			c.id,
+			c.name,
+			c.merchandise_id,
+			COALESCE(m.name, '') AS merchandise_name,
+			COALESCE(c.intro, ''),
+			c.created_at,
+			c.updated_at,
+		FROM characters c
+		LEFT JOIN merchandise m ON c.merchandise_id = m.id
+	`
+	rows, err := database.DB.Query(query)
+	if err != nil {
+		respondError(c, fmt.Errorf("取得所有角色失敗：%w", err))
+		return
+	}
 
+	defer rows.Close()
 
+	var chars []models.CharacterWithMerchandise
 
+	for rows.Next() {
+		var char models.CharacterWithMerchandise
+		if err := rows.Scan(
+			&char.ID,
+			&char.Name,
+			&char.MerchandiseID,
+			&char.MerchandiseName,
+			&char.Intro,
+			&char.CreatedAt,
+			&char.UpdatedAt,
+		); err != nil {
+			respondError(c, fmt.Errorf("讀取角色資料失敗：%w", err))
+			return
+		}
 
+		chars = append(chars, char)
+	}
 
-	respondError(c, fmt.Errorf("請實作：查詢 characters 並 LEFT JOIN merchandise 取得 merchandise_name，回傳列表"))
+	c.JSON(http.StatusOK, chars)
 }
 
 // GetCharacterByID 依 ID 取得單一角色
 func GetCharacterByID(c *gin.Context) {
+	// 驗證 ID 是否有效
 	id, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
-	respondError(c, fmt.Errorf("請實作：依 id 查詢單一角色（id=%d）", id))
+
+	// 使用id查詢角色資料，並 JOIN merchandise 帶出周邊名稱
+	query := `
+		SELECT
+			c.id,
+			c.name,
+			c.merchandise_id,
+			COALESCE(m.name, '') AS merchandise_name,
+			COALESCE(c.intro, ''),
+			c.created_at,
+			c.updated_at,
+		FROM characters c
+		LEFT JOIN merchandise m ON c.merchandise_id = m.id
+		WHERE c.id = $1
+	`
+
+	// 準備盒子接收查詢結果
+	var item models.CharacterWithMerchandise
+
+	// 執行查詢，並將結果掃描到盒子裡
+	if err := database.DB.QueryRow(query, id).Scan(
+		&item.ID,
+		&item.Name,
+		&item.MerchandiseID,
+		&item.MerchandiseName,
+		&item.Intro,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondError(c, ErrNotFound)
+			return
+		}
+		respondError(c, fmt.Errorf("查詢角色失敗：%w", err))
+		return
+	}
+
+	// 回傳查詢結果
+	c.JSON(http.StatusOK, item)
 }
 
 // CreateCharacter 新增角色
@@ -61,7 +136,31 @@ func CreateCharacter(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	respondError(c, fmt.Errorf("請實作：INSERT characters 並回傳（name=%s merchandise_id=%d）", input.Name, input.MerchandiseID))
+
+	// 實作：INSERT characters 並回傳（name, merchandise_id 從 input 帶入）
+	query := `
+		INSERT INTO characters (name, merchandise_id, intro, created_at, updated_at)
+		VALUES ($1, $2, $3, NOW(), NOW())
+		RETURNING id, name, merchandise_id, COALESCE(intro, ''), created_at, updated_at
+	`
+
+	// 準備盒子接收查詢結果
+	var newchar models.CharacterWithMerchandise
+
+	// 執行查詢，並將結果掃描到盒子裡
+	if err := database.DB.QueryRow(query, input.Name, input.MerchandiseID, input.Intro).Scan(
+		&newchar.ID,
+		&newchar.Name,
+		&newchar.MerchandiseID,
+		&newchar.Intro,
+		&newchar.CreatedAt,
+		&newchar.UpdatedAt,
+	); err != nil {
+		respondError(c, fmt.Errorf("新增角色失敗：%w", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, newchar)
 }
 
 // UpdateCharacter 更新角色
@@ -75,7 +174,33 @@ func UpdateCharacter(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	respondError(c, fmt.Errorf("請實作：UPDATE 角色並回傳（id=%d）", id))
+
+	// 實作：UPDATE characters 並回傳（name, merchandise_id 從 input 帶入）
+	query := `
+		UPDATE characters
+		SET name = $1, merchandise_id = $2, intro = $3, updated_at = NOW()
+		WHERE id = $4
+		RETURNING id, name, merchandise_id, COALESCE(intro, ''), created_at, updated_at
+	`
+
+	// 準備盒子接收查詢結果
+	var updatedchar models.CharacterWithMerchandise
+
+	// 執行查詢，並將結果掃描到盒子裡
+	if err := database.DB.QueryRow(query, input.Name, input.MerchandiseID, input.Intro, id).Scan(
+		&updatedchar.ID,
+		&updatedchar.Name,
+		&updatedchar.MerchandiseID,
+		&updatedchar.MerchandiseName,
+		&updatedchar.Intro,
+		&updatedchar.CreatedAt,
+		&updatedchar.UpdatedAt,
+	); err != nil {
+		respondError(c, fmt.Errorf("更新角色失敗：%w", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedchar)
 }
 
 // DeleteCharacter 刪除角色
@@ -84,5 +209,30 @@ func DeleteCharacter(c *gin.Context) {
 	if !ok {
 		return
 	}
-	respondError(c, fmt.Errorf("請實作：DELETE 角色（id=%d）", id))
+
+	// 實作：DELETE characters（依 id 刪除）
+	query := `DELETE FROM characters WHERE id = $1`
+
+	// 執行刪除(不需要回傳資料，用 Exec 就好)
+	result, err := database.DB.Exec(query, id)
+	if err != nil {
+		respondError(c, fmt.Errorf("刪除角色失敗：%w", err))
+		return
+	}
+
+	// 檢查是否有資料被刪除
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		respondError(c, fmt.Errorf("無法取得刪除結果：%w", err))
+		return
+	}
+
+	// 如果沒有資料被刪除，代表找不到該角色
+	if rowsAffected == 0 {
+		respondError(c, ErrNotFound)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "角色已刪除"})
+
 }
